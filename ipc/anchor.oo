@@ -1,0 +1,18 @@
+// # oobar IPC Subsystem Anchor
+//
+// Logline: Consolidates CLI argument parser, JSON field extractors, and Model Context Protocol stdio server.
+//
+// Setup: Root barrel shim for inter-process communication and MCP tooling domain.
+//
+// Beats:
+//   1. Re-export CLI command line flag parser and typed BarOpts struct.
+//   2. Re-export pure JSON field parser and string escaper.
+//   3. Re-export streaming JSON-RPC 2.0 stdio server routine.
+
+import "ipc/json_field.oo";
+import "ipc/bar_opts.oo";
+import "ipc/mcp_serve.oo";
+
+pub fn ipc_subsystem_version() -> String {
+    return "0.2.0";
+}

@@ -1,0 +1,11 @@
+Package: oobar
+Version: 0.2.0-1
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: openOODA-tools <ops@openooda.org>
+Depends: libc6
+Description: PROGRESS METER
+ Renders smooth terminal progress bars with ETA, throughput, and percent gauges.
+ Capability-bounded openOODA utility with zero ambient authority,
+ oote theme palettes, and native Model Context Protocol (MCP) surface.

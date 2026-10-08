@@ -1,0 +1,128 @@
+// # oobar CLI Options Parser
+//
+// Logline: Ingests command line arguments into typed progress meter options.
+//
+// Setup: Pure argument decoding for counts, width, style, labels, and operational modes.
+//
+// Beats:
+//   1. Parse integers from decimal string sequences without ambient authority.
+//   2. Define BarOpts data structure covering all gauge rendering parameters.
+//   3. Extract flags for current progress, total bound, style, label, and JSON modes.
+
+pub type BarOpts = struct {
+    action: String,
+    current: Int,
+    total: Int,
+    width: Int,
+    elapsed: Int,
+    style: String,
+    label: String,
+    color: String,
+    use_bytes: Bool,
+    json_mode: Bool
+};
+
+fn digit_value(c: String) -> Int {
+    if c == "0" { return 0; }
+    if c == "1" { return 1; }
+    if c == "2" { return 2; }
+    if c == "3" { return 3; }
+    if c == "4" { return 4; }
+    if c == "5" { return 5; }
+    if c == "6" { return 6; }
+    if c == "7" { return 7; }
+    if c == "8" { return 8; }
+    if c == "9" { return 9; }
+    return -1;
+}
+
+pub fn parse_int_str(s: String) -> Int {
+    let n: Int = chars_len(s);
+    let mut acc: Int = 0;
+    let mut i: Int = 0;
+    while i < n {
+        let d: Int = digit_value(char_at(s, i));
+        if d >= 0 {
+            acc = (acc * 10) + d;
+        }
+        i = i + 1;
+    }
+    return acc;
+}
+
+pub fn default_bar_opts() -> BarOpts {
+    return BarOpts {
+        action: "render",
+        current: 50,
+        total: 100,
+        width: 30,
+        elapsed: 0,
+        style: "block",
+        label: "",
+        color: "none",
+        use_bytes: false,
+        json_mode: false
+    };
+}
+
+pub fn parse_bar_args(args: List[String]) -> BarOpts {
+    let mut opts: BarOpts = default_bar_opts();
+    let n: Int = list_len(args);
+    let mut i: Int = 0;
+
+    while i < n {
+        let arg: String = list_get(args, i);
+        if arg == "-h" || arg == "--help" {
+            opts.action = "help";
+            return opts;
+        } else if arg == "-v" || arg == "--version" {
+            opts.action = "version";
+            return opts;
+        } else if arg == "--mcp" {
+            opts.action = "mcp";
+            return opts;
+        } else if arg == "--json" {
+            opts.json_mode = true;
+        } else if arg == "--bytes" {
+            opts.use_bytes = true;
+        } else if arg == "-c" || arg == "--current" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.current = parse_int_str(list_get(args, i));
+            }
+        } else if arg == "-t" || arg == "--total" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.total = parse_int_str(list_get(args, i));
+            }
+        } else if arg == "-w" || arg == "--width" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.width = parse_int_str(list_get(args, i));
+            }
+        } else if arg == "-e" || arg == "--elapsed" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.elapsed = parse_int_str(list_get(args, i));
+            }
+        } else if arg == "-s" || arg == "--style" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.style = list_get(args, i);
+            }
+        } else if arg == "-l" || arg == "--label" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.label = list_get(args, i);
+            }
+        } else if arg == "--color" {
+            if i + 1 < n {
+                i = i + 1;
+                opts.color = list_get(args, i);
+            }
+        }
+        i = i + 1;
+    }
+
+    return opts;
+}

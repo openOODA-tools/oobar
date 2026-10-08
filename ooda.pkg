@@ -1,7 +1,7 @@
 name=oobar
-version=0.1.0
+version=0.2.0
 deps=
-caps=Term,Env,Mcp
+caps=FsRead,Process,Env,Mcp
 license=Apache-2.0
 payload=main.oo
 commit=

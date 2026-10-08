@@ -1,0 +1,16 @@
+// # oobar Render Subsystem Anchor
+//
+// Logline: Consolidates progress meter ANSI visualizers, status indicators, and JSON serializers.
+//
+// Setup: Root barrel shim for meter rendering and formatting domain.
+//
+// Beats:
+//   1. Re-export ANSI color styles and text formatting primitives.
+//   2. Re-export themed progress line formatter for interactive terminals.
+//   3. Re-export structured JSON serializer for programmatic progress streaming.
+
+import "render/bar_theme.oo";
+
+pub fn render_subsystem_version() -> String {
+    return "0.2.0";
+}

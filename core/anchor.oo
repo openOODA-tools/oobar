@@ -1,0 +1,18 @@
+// # oobar Core Subsystem Anchor
+//
+// Logline: Consolidates progress meter models, glyph palettes, and track compositing engine.
+//
+// Setup: Root barrel shim for core terminal progress meter domain.
+//
+// Beats:
+//   1. Re-export ProgressState models, percentage calculators, and byte converters.
+//   2. Re-export character glyph palettes across block, ascii, cyber, and braille themes.
+//   3. Re-export track renderers and full composite progress line generators.
+
+import "core/meter_model.oo";
+import "core/meter_glyphs.oo";
+import "core/meter_engine.oo";
+
+pub fn core_subsystem_version() -> String {
+    return "0.2.0";
+}

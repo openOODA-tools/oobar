@@ -1,0 +1,111 @@
+// # Model Context Protocol (MCP) Stdio Server for oobar
+//
+// Logline: JSON-RPC 2.0 stdio server providing progress gauge, ETA calculations, and styling tools.
+//
+// Setup: Demands FsReadCap for stdio streaming. Operates without ambient authority.
+//
+// Beats:
+//   1. Ingest JSON-RPC 2.0 frames over stdin and dispatch RPC methods.
+//   2. Advertise progress bar rendering, ETA arithmetic, and style querying tools.
+//   3. Execute capability-bounded progress calculations and stream JSON responses.
+
+import "core/meter_model.oo";
+import "render/bar_theme.oo";
+import "ipc/json_field.oo";
+import "ipc/bar_opts.oo";
+
+pub fn run_mcp_server(fs: &FsReadCap) {
+    let mut running: Bool = true;
+    while running {
+        let line_res: Result[String, String] = oo_read_stdin_chunk(fs, 8192);
+        if !line_res.is_ok() {
+            running = false;
+        } else {
+            let line: String = match line_res { Ok(s) => s, Err(_) => "" };
+            let trimmed: String = str_trim(line);
+            if chars_len(trimmed) == 0 {
+                running = false;
+            } else {
+                let id: String = json_get_field(trimmed, "id");
+                let method: String = json_get_string(trimmed, "method");
+
+                if method == "initialize" {
+                    let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                        ",\"result\":{\"protocolVersion\":\"2024-11-05\"," +
+                        "\"serverInfo\":{\"name\":\"oobar\",\"version\":\"0.2.0\"}," +
+                        "\"capabilities\":{\"tools\":{}}}}";
+                    println(resp);
+                } else if method == "notifications/initialized" {
+                    // Ack
+                } else if method == "tools/list" {
+                    let t1: String = "{\"name\":\"bar_render\",\"description\":\"Render single-line progress gauge with percent and ETA\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"current\":{\"type\":\"integer\"},\"total\":{\"type\":\"integer\"},\"width\":{\"type\":\"integer\"},\"style\":{\"type\":\"string\"},\"label\":{\"type\":\"string\"},\"elapsed\":{\"type\":\"integer\"},\"bytes\":{\"type\":\"boolean\"}},\"required\":[\"current\",\"total\"]}}";
+                    let t2: String = "{\"name\":\"bar_styles\",\"description\":\"List available progress bar glyph styles and delimiters\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}";
+                    let t3: String = "{\"name\":\"bar_eta\",\"description\":\"Calculate percentage completion, remaining duration, and formatted ETA\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{\"current\":{\"type\":\"integer\"},\"total\":{\"type\":\"integer\"},\"elapsed_seconds\":{\"type\":\"integer\"}},\"required\":[\"current\",\"total\"]}}";
+                    let t4: String = "{\"name\":\"bar_stats\",\"description\":\"Query progress meter engine specifications\"," +
+                        "\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}";
+                    let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                        ",\"result\":{\"tools\":[" + t1 + "," + t2 + "," + t3 + "," + t4 + "]}}";
+                    println(resp);
+                } else if method == "tools/call" {
+                    let params: String = json_get_field(trimmed, "params");
+                    let tool_name: String = json_get_string(params, "name");
+                    let args: String = json_get_field(params, "arguments");
+
+                    if tool_name == "bar_render" {
+                        let cur_str: String = json_get_field(args, "current");
+                        let tot_str: String = json_get_field(args, "total");
+                        let w_str: String = json_get_field(args, "width");
+                        let el_str: String = json_get_field(args, "elapsed");
+                        let style_in: String = json_get_string(args, "style");
+                        let label_in: String = json_get_string(args, "label");
+                        let bytes_str: String = json_get_field(args, "bytes");
+
+                        let cur: Int = parse_int_str(cur_str);
+                        let tot: Int = if chars_len(tot_str) > 0 { parse_int_str(tot_str) } else { 100 };
+                        let w: Int = if chars_len(w_str) > 0 { parse_int_str(w_str) } else { 30 };
+                        let el: Int = if chars_len(el_str) > 0 { parse_int_str(el_str) } else { 0 };
+                        let style: String = if chars_len(style_in) > 0 { style_in } else { "block" };
+                        let use_bytes: Bool = (bytes_str == "true");
+
+                        let state: ProgressState = make_progress_state(cur, tot, w, el, style, label_in);
+                        let j: String = render_progress_json(state, use_bytes);
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                        println(resp);
+                    } else if tool_name == "bar_styles" {
+                        let j: String = "{\"styles\":[{\"name\":\"block\",\"characters\":\"|████░░░░|\"},{\"name\":\"ascii\",\"characters\":\"[====>    ]\"},{\"name\":\"cyber\",\"characters\":\"⟨▰▰▰▰▱▱▱▱⟩\"},{\"name\":\"braille\",\"characters\":\"|⣿⣿⣿⣿⣀⣀⣀⣀|\"},{\"name\":\"smooth\",\"characters\":\"|████▌   |\"}]}";
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                        println(resp);
+                    } else if tool_name == "bar_eta" {
+                        let cur: Int = parse_int_str(json_get_field(args, "current"));
+                        let tot: Int = parse_int_str(json_get_field(args, "total"));
+                        let el: Int = parse_int_str(json_get_field(args, "elapsed_seconds"));
+                        let p: Int = compute_percent(cur, tot);
+                        let eta: Int = compute_eta(cur, tot, el);
+                        let j: String = "{\"current\":" + to_string(cur) + ",\"total\":" + to_string(tot) + ",\"percent\":" + to_string(p) + ",\"elapsed_seconds\":" + to_string(el) + ",\"eta_seconds\":" + to_string(eta) + ",\"eta\":\"" + format_duration(eta) + "\"}";
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                        println(resp);
+                    } else if tool_name == "bar_stats" {
+                        let j: String = "{\"engine\":\"oobar\",\"version\":\"0.2.0\",\"styles_count\":5,\"features\":[\"eta\",\"throughput\",\"byte_formatting\",\"mcp\"]}";
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"" + json_escape_string(j) + "\"}]}}";
+                        println(resp);
+                    } else {
+                        let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                            ",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}";
+                        println(resp);
+                    }
+                } else {
+                    let resp: String = "{\"jsonrpc\":\"2.0\",\"id\":" + id +
+                        ",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}";
+                    println(resp);
+                }
+            }
+        }
+    }
+}

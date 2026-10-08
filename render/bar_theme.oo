@@ -1,0 +1,93 @@
+// # oobar Rendering and ANSI Color Formatter
+//
+// Logline: Formats terminal progress bars with ANSI color themes and structured JSON representations.
+//
+// Setup: Pure string formatter supporting oote palettes and JSON gauge envelopes.
+//
+// Beats:
+//   1. Provide ANSI styling helpers for progress tracks, percentages, and labels.
+//   2. Apply color palettes based on operational status and user preferences.
+//   3. Serialize ProgressState models and rendered bar strings into structured JSON.
+
+import "core/meter_model.oo";
+import "core/meter_engine.oo";
+
+pub fn ansi_reset() -> String { return "\x1b[0m"; }
+pub fn ansi_bold() -> String { return "\x1b[1m"; }
+pub fn ansi_dim() -> String { return "\x1b[2m"; }
+pub fn ansi_cyan() -> String { return "\x1b[36m"; }
+pub fn ansi_green() -> String { return "\x1b[32m"; }
+pub fn ansi_yellow() -> String { return "\x1b[33m"; }
+pub fn ansi_magenta() -> String { return "\x1b[35m"; }
+pub fn ansi_red() -> String { return "\x1b[31m"; }
+pub fn ansi_blue() -> String { return "\x1b[34m"; }
+
+pub fn color_code_for(color_name: String) -> String {
+    if color_name == "cyan" { return ansi_cyan(); }
+    if color_name == "green" { return ansi_green(); }
+    if color_name == "yellow" { return ansi_yellow(); }
+    if color_name == "magenta" { return ansi_magenta(); }
+    if color_name == "red" { return ansi_red(); }
+    if color_name == "blue" { return ansi_blue(); }
+    if color_name == "bold" { return ansi_bold(); }
+    return "";
+}
+
+fn json_escape(s: String) -> String {
+    let mut out: String = "";
+    let n: Int = chars_len(s);
+    let mut i: Int = 0;
+    while i < n {
+        let c: String = char_at(s, i);
+        if c == "\\" {
+            out = out + "\\\\";
+        } else if c == "\"" {
+            out = out + "\\\"";
+        } else if c == "\n" {
+            out = out + "\\n";
+        } else if c == "\r" {
+            out = out + "\\r";
+        } else if c == "\t" {
+            out = out + "\\t";
+        } else {
+            out = out + c;
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+pub fn render_themed_progress(state: ProgressState, use_bytes: Bool, color_name: String) -> String {
+    let line: String = render_progress_line(state, use_bytes);
+    let mut c_code: String = color_code_for(color_name);
+
+    if chars_len(c_code) == 0 {
+        if state.done {
+            c_code = ansi_green();
+        } else {
+            c_code = ansi_cyan();
+        }
+    }
+
+    return c_code + line + ansi_reset() + "\n";
+}
+
+pub fn render_progress_json(state: ProgressState, use_bytes: Bool) -> String {
+    let track_str: String = render_bar_track(state);
+    let eta_str: String = format_duration(state.eta_seconds);
+    let elapsed_str: String = format_duration(state.elapsed_seconds);
+
+    return "{\"current\":" + to_string(state.current)
+        + ",\"total\":" + to_string(state.total)
+        + ",\"percent\":" + to_string(state.percent)
+        + ",\"width\":" + to_string(state.width)
+        + ",\"style\":\"" + json_escape(state.style) + "\""
+        + ",\"label\":\"" + json_escape(state.label) + "\""
+        + ",\"eta_seconds\":" + to_string(state.eta_seconds)
+        + ",\"eta\":\"" + eta_str + "\""
+        + ",\"elapsed_seconds\":" + to_string(state.elapsed_seconds)
+        + ",\"elapsed\":\"" + elapsed_str + "\""
+        + ",\"done\":" + (if state.done { "true" } else { "false" })
+        + ",\"use_bytes\":" + (if use_bytes { "true" } else { "false" })
+        + ",\"bar\":\"" + json_escape(track_str) + "\"}";
+}

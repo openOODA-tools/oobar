@@ -1,52 +1,73 @@
-// # oobar Main Entry Point
+// # oobar Main Entry Point - Sovereign Progress Meter
 //
 // Logline: Renders smooth terminal progress bars with ETA, throughput, and percent gauges.
 //
-// Setup: Demands explicit capability tokens and standard argument list.
+// Setup: Requires FsReadCap, ProcessCap, EnvCap. Operates with zero ambient authority.
 //
 // Beats:
-//   1. Parse command-line options and dispatch --help, --version, or --mcp.
-//   2. Execute capability-bounded oobar operations.
-//   3. Format and output structured results to standard output.
+//   1. Dispatch --help, --version, and --mcp early without ambient side effects.
+//   2. Compute completion metrics, duration ratios, and remaining arrival times.
+//   3. Composite styled progress gauges across terminal and structured JSON interfaces.
+
+import "core/meter_model.oo";
+import "render/bar_theme.oo";
+import "ipc/bar_opts.oo";
+import "ipc/mcp_serve.oo";
 
 fn render_help() -> String {
-    return "oobar 0.1.0 (openOODA sovereign theme & styling)\n"
-        + "usage: oobar [options] [ARGUMENTS]...\n\n"
+    return "oobar 0.2.0 (openOODA sovereign terminal & gauges)\n"
+        + "usage: oobar [options]\n\n"
         + "Renders smooth terminal progress bars with ETA, throughput, and percent gauges.\n\n"
         + "Options:\n"
         + "  -h, --help           display this help and exit\n"
         + "  -v, --version        output version information and exit\n"
-        + "      --json           output formatted as JSON Lines\n"
-        + "      --color <WHEN>   colorize output: auto, always, never [default: auto]\n"
-        + "      --theme <NAME>   override active oote palette\n"
+        + "  -c, --current <INT>  current completed units [default: 50]\n"
+        + "  -t, --total <INT>    total expected units [default: 100]\n"
+        + "  -w, --width <INT>    progress bar track width in columns [default: 30]\n"
+        + "  -s, --style <STYLE>  track glyph style: block, ascii, cyber, braille, smooth [default: block]\n"
+        + "  -l, --label <TEXT>   prefix description label\n"
+        + "  -e, --elapsed <INT>  elapsed duration in seconds for ETA and rate calculation\n"
+        + "      --bytes          format counters as human-readable byte values\n"
+        + "      --color <COLOR>  ANSI track color: cyan, green, yellow, magenta, red, blue\n"
+        + "      --json           format output as structured JSON\n"
         + "      --mcp            run as Model Context Protocol stdio server\n";
 }
 
-fn render_version() -> String {
-    return "oobar 0.1.0 (openOODA sovereign theme & styling)\n";
-}
+pub fn main(
+    fs: &FsReadCap,
+    proc_cap: &ProcessCap,
+    env: &EnvCap,
+    args: List[String]
+) -> Result[Int, String] {
+    let opts: BarOpts = parse_bar_args(args);
 
-fn main(args: List[String]) -> Int {
-    let num_args: Int = list_len(args);
-    let mut i: Int = 0;
-
-    while i < num_args {
-        let arg: String = list_get(args, i);
-        if arg == "-h" || arg == "--help" {
-            print(render_help());
-            return 0;
-        }
-        if arg == "-v" || arg == "--version" {
-            print(render_version());
-            return 0;
-        }
-        if arg == "--mcp" {
-            print("{\"jsonrpc\":\"2.0\",\"result\":{\"status\":\"ready\",\"tool\":\"oobar\"}}\n");
-            return 0;
-        }
-        i = i + 1;
+    if opts.action == "help" {
+        print(render_help());
+        return Ok(0);
+    }
+    if opts.action == "version" {
+        println("oobar 0.2.0 (openOODA sovereign terminal & gauges)");
+        return Ok(0);
+    }
+    if opts.action == "mcp" {
+        run_mcp_server(fs);
+        return Ok(0);
     }
 
-    print("oobar: sovereign capability-bounded utility ready\n");
-    return 0;
+    let state: ProgressState = make_progress_state(
+        opts.current,
+        opts.total,
+        opts.width,
+        opts.elapsed,
+        opts.style,
+        opts.label
+    );
+
+    if opts.json_mode {
+        println(render_progress_json(state, opts.use_bytes));
+    } else {
+        print(render_themed_progress(state, opts.use_bytes, opts.color));
+    }
+
+    return Ok(0);
 }

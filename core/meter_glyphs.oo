@@ -1,0 +1,75 @@
+// # oobar Progress Bar Glyphs and Character Palettes
+//
+// Logline: Character definitions for terminal progress bars across styling themes.
+//
+// Setup: Pure string glyph definitions for visual fill, partial, and empty segments.
+//
+// Beats:
+//   1. Define block, ascii, cyber, braille, and smooth glyph sets.
+//   2. Provide open and close bracket frame delimiters.
+//   3. Render repeated glyph runs for filled and unfilled bar sections.
+
+pub type BarGlyphSet = struct {
+    open_cap: String,
+    close_cap: String,
+    fill_char: String,
+    empty_char: String,
+    tip_char: String
+};
+
+pub fn get_glyph_set(style: String) -> BarGlyphSet {
+    if style == "ascii" {
+        return BarGlyphSet {
+            open_cap: "[",
+            close_cap: "]",
+            fill_char: "=",
+            empty_char: " ",
+            tip_char: ">"
+        };
+    }
+    if style == "cyber" {
+        return BarGlyphSet {
+            open_cap: "⟨",
+            close_cap: "⟩",
+            fill_char: "▰",
+            empty_char: "▱",
+            tip_char: "▰"
+        };
+    }
+    if style == "braille" {
+        return BarGlyphSet {
+            open_cap: "|",
+            close_cap: "|",
+            fill_char: "⣿",
+            empty_char: "⣀",
+            tip_char: "⣿"
+        };
+    }
+    if style == "smooth" {
+        return BarGlyphSet {
+            open_cap: "|",
+            close_cap: "|",
+            fill_char: "█",
+            empty_char: " ",
+            tip_char: "▌"
+        };
+    }
+    // Default: block
+    return BarGlyphSet {
+        open_cap: "|",
+        close_cap: "|",
+        fill_char: "█",
+        empty_char: "░",
+        tip_char: "█"
+    };
+}
+
+pub fn repeat_glyph(glyph: String, count: Int) -> String {
+    let mut out: String = "";
+    let mut i: Int = 0;
+    while i < count {
+        out = out + glyph;
+        i = i + 1;
+    }
+    return out;
+}

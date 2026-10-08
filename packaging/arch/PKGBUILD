@@ -1,7 +1,7 @@
 # Maintainer: openOODA-tools <ops@openooda.org>
 pkgname=oobar-bin
 _pkgname=oobar
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="Renders smooth terminal progress bars with ETA, throughput, and percent gauges."
 arch=('x86_64')

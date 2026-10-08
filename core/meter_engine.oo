@@ -1,0 +1,73 @@
+// # oobar Progress Meter Compositor Engine
+//
+// Logline: Generates single-line terminal progress bars with percentage, counts, and ETA indicators.
+//
+// Setup: Pure string compositing based on ProgressState and BarGlyphSet.
+//
+// Beats:
+//   1. Calculate exact filled and unfilled glyph counts within target column width.
+//   2. Build progress bar track with delimiters and directional tips.
+//   3. Composite prefix labels, progress tracks, percent numbers, and ETA counters.
+
+import "core/meter_model.oo";
+import "core/meter_glyphs.oo";
+
+pub fn render_bar_track(state: ProgressState) -> String {
+    let glyphs: BarGlyphSet = get_glyph_set(state.style);
+    let filled_count: Int = (state.width * state.percent) / 100;
+    let mut empty_count: Int = state.width - filled_count;
+
+    if empty_count < 0 {
+        empty_count = 0;
+    }
+
+    let mut track: String = glyphs.open_cap;
+
+    if state.style == "ascii" {
+        if filled_count > 0 && empty_count > 0 {
+            track = track + repeat_glyph(glyphs.fill_char, filled_count - 1) + glyphs.tip_char;
+        } else {
+            track = track + repeat_glyph(glyphs.fill_char, filled_count);
+        }
+    } else {
+        track = track + repeat_glyph(glyphs.fill_char, filled_count);
+    }
+
+    track = track + repeat_glyph(glyphs.empty_char, empty_count) + glyphs.close_cap;
+    return track;
+}
+
+pub fn render_progress_line(state: ProgressState, use_bytes: Bool) -> String {
+    let bar_str: String = render_bar_track(state);
+    let mut out: String = "";
+
+    if chars_len(state.label) > 0 {
+        out = out + state.label + " ";
+    }
+
+    out = out + bar_str + " ";
+
+    let p_str: String = to_string(state.percent);
+    let p_padded: String = if chars_len(p_str) == 1 {
+        "  " + p_str + "%"
+    } else if chars_len(p_str) == 2 {
+        " " + p_str + "%"
+    } else {
+        p_str + "%"
+    };
+    out = out + p_padded + " ";
+
+    let cur_str: String = if use_bytes { format_bytes(state.current) } else { to_string(state.current) };
+    let tot_str: String = if use_bytes { format_bytes(state.total) } else { to_string(state.total) };
+    out = out + "(" + cur_str + "/" + tot_str + ")";
+
+    if state.elapsed_seconds > 0 {
+        if state.done {
+            out = out + " [done in " + format_duration(state.elapsed_seconds) + "]";
+        } else {
+            out = out + " [ETA " + format_duration(state.eta_seconds) + "]";
+        }
+    }
+
+    return out;
+}

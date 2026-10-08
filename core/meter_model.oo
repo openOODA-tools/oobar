@@ -1,0 +1,94 @@
+// # oobar Progress Meter Domain Model
+//
+// Logline: Data structures and arithmetic calculators for progress states, rates, and ETAs.
+//
+// Setup: Pure numerical models and formatting functions for terminal gauges.
+//
+// Beats:
+//   1. Define ProgressState struct capturing current, total, elapsed, and rate values.
+//   2. Compute percentage completion and remaining estimated time of arrival (ETA).
+//   3. Convert raw byte counts into human-readable metric strings.
+
+pub type ProgressState = struct {
+    current: Int,
+    total: Int,
+    width: Int,
+    elapsed_seconds: Int,
+    style: String,
+    label: String,
+    percent: Int,
+    eta_seconds: Int,
+    done: Bool
+};
+
+pub fn compute_percent(current: Int, total: Int) -> Int {
+    if total <= 0 {
+        return 100;
+    }
+    if current >= total {
+        return 100;
+    }
+    if current <= 0 {
+        return 0;
+    }
+    return (current * 100) / total;
+}
+
+pub fn compute_eta(current: Int, total: Int, elapsed: Int) -> Int {
+    if current <= 0 || elapsed <= 0 || current >= total {
+        return 0;
+    }
+    let remaining: Int = total - current;
+    let rate_per_sec: Int = current / elapsed;
+    if rate_per_sec <= 0 {
+        // Fallback: proportional calculation
+        return (remaining * elapsed) / current;
+    }
+    return remaining / rate_per_sec;
+}
+
+pub fn format_duration(seconds: Int) -> String {
+    if seconds <= 0 {
+        return "00:00";
+    }
+    let m: Int = seconds / 60;
+    let s: Int = seconds - (m * 60);
+    let m_str: String = if m < 10 { "0" + to_string(m) } else { to_string(m) };
+    let s_str: String = if s < 10 { "0" + to_string(s) } else { to_string(s) };
+    return m_str + ":" + s_str;
+}
+
+pub fn format_bytes(bytes: Int) -> String {
+    if bytes < 1024 {
+        return to_string(bytes) + "B";
+    }
+    let kb: Int = bytes / 1024;
+    if kb < 1024 {
+        return to_string(kb) + "KB";
+    }
+    let mb: Int = kb / 1024;
+    if mb < 1024 {
+        return to_string(mb) + "MB";
+    }
+    let gb: Int = mb / 1024;
+    return to_string(gb) + "GB";
+}
+
+pub fn make_progress_state(cur: Int, tot: Int, w: Int, elapsed: Int, style: String, label: String) -> ProgressState {
+    let p: Int = compute_percent(cur, tot);
+    let eta: Int = compute_eta(cur, tot, elapsed);
+    let is_done: Bool = (tot > 0) && (cur >= tot);
+    let safe_w: Int = if w <= 5 { 20 } else { w };
+
+    return ProgressState {
+        current: cur,
+        total: tot,
+        width: safe_w,
+        elapsed_seconds: elapsed,
+        style: style,
+        label: label,
+        percent: p,
+        eta_seconds: eta,
+        done: is_done
+    };
+}
